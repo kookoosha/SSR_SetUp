@@ -1,5 +1,5 @@
-
-## ИНИЦИАЛИЗАЦИЯ ПРОЕКТА - GIT
+# :fox_face:
+## :pushpin: ИНИЦИАЛИЗАЦИЯ ПРОЕКТА - GIT
 
 
 - [X] `git init` - Инициализация git в данной папке
@@ -35,7 +35,7 @@ rules: {
 - [ ] `npm i express react react-dom react-router-dom sequelize sequelize-cli pg pg-hstore`
 
 
-## BABEL
+## :pushpin: BABEL
 > Babel позволяет решить проблему совместимости Javascript разных версий. Например, с помощью babel можно использовать как require/module.exports, так и import/export.
 - [X] Создаём файл `.babelrc` 
 - [X] Вставляем конфигурацию:
@@ -48,7 +48,7 @@ rules: {
     "plugins": ["@babel/plugin-proposal-class-properties"]
 }
 ```
-## WEBPACK
+## :pushpin: WEBPACK
 >Webpack нужен для эффективной сборки проектов, всех зависимостей и их компрессии для экономии трафика и ресурсов сервера. Данный конфигурационный файл отвечает за то, что webpack соберёт весь наш проект и все зависимости в 2 файла в папке public: app.js и vendor.js
 
 
@@ -110,7 +110,7 @@ const config = {
 module.exports = config;
 ```
 
-## SRC / SERVER
+## :pushpin: SRC / SERVER
 >Все данные проекта будут находиться в папке src. Файл server.js будет являться стартовой точкой запуска express.
 Скрипты в package.json добавляем, чтобы можно было разделить запуск webpack и express
 
@@ -126,7 +126,7 @@ module.exports = config;
 ```
 - [X] В папке src/routes -> разбиваем логику роутов на разные файлы
 -
-##### Пример server.js
+##### :paperclip: Пример server.js
 ```Javascript 
 // Подключение библиотеки express
 import express from 'express';
@@ -188,7 +188,7 @@ export default function jsxRender(pathToFile, initState, cb) {
 }
 ```
 
-## SRC/COMPONENTS
+## :pushpin: SRC/COMPONENTS
 >Зачем это нужно?
 >>App.jsx – это точка входа в наше приложение на фронтэнде
 >>>Layout.jsx – разметка html документа
@@ -270,7 +270,7 @@ export default function Layout({ initState }) {
 }
 ```
 
-## hydrateRoot
+## :pushpin: hydrateRoot
 Если нужна гидратация, то:
 - [X] В этой же папке создаём index.jsx
 Задаём гидратацию:
@@ -319,13 +319,86 @@ import { StaticRouter } from 'react-router-dom/server';
 ```
 
 
+## :pushpin: FETCH API
+### Пример (frontend)
+```Javascript
+import React from 'react';
+
+export default function App() {
+  const handler = () => {
+    fetch('https://jsonplaceholder.typicode.com/todos/1')
+      .then((response) => response.json())
+      .then((data) => console.log(data));
+  };
+  return (
+    <div>
+      <button type="button" onClick={handler}>
+        Click me!
+      </button>
+    </div>
+  );
+}
+```
+
+### AJAX отправка формы
+Для AJAX отправки формы нужно
+- [X] Добавить обработчик события отправки формы (атрибуты `onSubmit, onClick`)
+- [X] Предотвратить стандартное поведение, перезагружающее страницу: `event.preventDefault()`
+- [X] Сделать самостоятельный сетевой запрос (например, fetch)
+
+####  пример AJAX отправки 
+Frontend
+
+```Javascript
+
+import React from 'react';
+
+export default function App() {
+  const handler = (e) => {
+    e.preventDefault();
+    fetch('/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.fromEntries(new FormData(e.target))),
+    });
+  };
+  return (
+    <form onSubmit={handler}>
+      <input name="title" />
+      <input name="message" />
+      <button type="submit">Send</button>
+    </form>
+  );
+}
+```
+Backend
+```Javascript
+import express from 'express';
+import template from './src/template';
+
+const PORT = 3000;
+const app = express();
+
+app.use(express.static('public'));
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+
+app.get('/', (req, res) => res.send(template({ path: req.originalUrl })));
+
+app.post('/messages', (req, res) => {
+  console.log(req.body); // Здесь находятся данные формы
+  res.sendStatus(200);
+});
+
+app.listen(PORT, () => console.log(`App has started on port ${PORT}`));
+```
 
 
 
 
 
+## SEQUELIZE :memo:
 
-## SEQUELIZE 
 ###  .sequelizerc
 >Sequelize позволяет управлять базой данных с помощью Javascript.
 
