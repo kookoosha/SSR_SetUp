@@ -393,8 +393,30 @@ app.post('/messages', (req, res) => {
 app.listen(PORT, () => console.log(`App has started on port ${PORT}`));
 ```
 
+## Cookie, sessions
 
-
+- [X] Чтобы использовать express session, установите `npm i express-session session-file-store`
+- [X] В server.js создайте конфигурационный объект, подключите сессии и их хранилище:
+```Javascript
+import session from 'express-session';
+import store from 'session-file-store';
+//
+const FileStore = store(session);
+//
+const sessionConfig = {
+  name: 'user_sid',         // Имя куки для хранения id сессии. По умолчанию - connect.sid
+  secret: process.env.SESSION_SECRET ?? 'test', // Секретное слово для шифрования
+  resave: true,         // Пересохранять ли куку при каждом запросе
+  store: new FileStore(),
+  saveUninitialized: false,     // Создавать ли сессию без инициализации ключей в req.session
+  cookie: {
+    maxAge: 1000 * 60 * 60 * 12, // Срок истечения годности куки в миллисекундах
+    httpOnly: true,         // Серверная установка и удаление куки, по умолчанию true
+  },
+};
+//
+app.use(session(sessionConfig));
+```
 
 
 ## SEQUELIZE :memo:
