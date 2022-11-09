@@ -394,6 +394,7 @@ app.listen(PORT, () => console.log(`App has started on port ${PORT}`));
 ```
 
 ## Cookie, sessions
+####Backend
 
 - [X] Чтобы использовать express session, установите `npm i express-session session-file-store`
 - [X] В server.js создайте конфигурационный объект, подключите сессии и их хранилище:
@@ -417,7 +418,63 @@ const sessionConfig = {
 //
 app.use(session(sessionConfig));
 ```
+- [X] разбиваем на роуты `routes/authRouter.js
+```Javascript 
+// РЕГИСТРАЦИЯ
+router.post('/reg', async (req, res) => {
+  const { userName, email, password } = req.body; // получаем данные от пользователя при регистрации
+  // Проверяем что пришли все данные вместе и ничего не пришло пустым
+  // эту проверку делать на Бэке, на фронте опасно
+  if (!userName || !email || !password) {
+    return res.sendStatus(400);
+  } // если что то не пришло отправляем 400
 
+  // ------
+  // перед тем как зарегистрировать пользователя хэшируем pass
+  // для этого импортируем библиотеку bcrypt для хэширования пароля ( npm i bcrypt )
+  const hashPassword = await hash(password, 10);
+  // регистрируем пользователя в БД и проверяем есть ли он в БД
+  try {
+    const [newUser, isCreated] = await User.findOrCreate({
+      where: { email },
+      defaults: { email, password: hashPassword },
+    });
+    if (!isCreated) return res.sendStatus(400);
+    // сразу же авторизируем пользователя
+    req.session.user = { id: newUser.id, email: newUser.email };
+    // отправляем на фронт данные юзера
+    // res.json({ id: newUser.id, userName: newUser.userName, email: newUser.email });
+    return res.sendStatus(200);
+  } catch (err) {
+    console.error(err);
+  }
+  return res.sendStatus(200);
+});
+router.get('/logout', (req, res) => {
+  res.clearCookie('user_sid'); // Удалить куку
+  req.session.destroy(); // Завершить сессию
+  res.redirect('/');
+});
+```
+
+// РЕГИСТРАЦИЯ ФРОНТ
+- [X] На форму навешиваем `onSubmit={handleSubmit}` ппрописываем у инпутов неймы  и пишем хендлер
+```Javascript 
+ const handleSubmit = async (e) => {
+    e.preventDefault();
+    const response = await fetch('/auth/reg/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(Object.fromEntries(new FormData(e.target))),
+    });
+
+    if (response.ok) {
+      window.location.href = '/';
+    }
+  };
+```
 
 ## SEQUELIZE :memo:
 
