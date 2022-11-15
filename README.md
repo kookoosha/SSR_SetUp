@@ -225,32 +225,26 @@ export default function jsxRender(_, initState, cb) {
 - [X] Создаём папку `src/components` и в ней файл `App.jsx`
 Разворачиваем сниппет `rfc` (react functional component):
 ```Javascript
-import React, { useState } from 'react';
-/*
-получаем count из пропсов переданных в Layout в файле server.js
-*/
-export default function App({ count }) {
-// Объявляем состояние которое будет хранить состояние счетчика
-  const [appCount, setAppCount] = useState(count);
+import React from 'react';
+import { Route, Routes } from 'react-router-dom';
+import Auth from './Auth';
+import Home from './Home';
+import Navbar from './Navbar';
+import Reg from './Reg';
+import Users from './Users';
 
-  // Добавляем функцию которая будет выполнять fetch запрос при нажатии на кнопку
-  const counterHandler = () => {
-    fetch('/next')
-      .then((res) => res.json())
-      .then((res) => setAppCount(res.count));
-  };
-
+export default function App({ user, users }) {
+  console.log(user);
   return (
-    <>
-      <h1>Кусочек</h1>
-      <span>{appCount}</span>
-      <button
-        type="button"
-        onClick={counterHandler} // Создаем обработчик события click
-      >
-        Следующий
-      </button>
-    </>
+    <div className="container">
+      <Navbar user={user} />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/reg" element={<Reg />} />
+        <Route path="/users" element={<Users users={users} />} />
+      </Routes>
+    </div>
   );
 }
 ```
@@ -265,6 +259,7 @@ export default function App({ count }) {
 
 ```Javascript
 import React from 'react';
+import { StaticRouter } from 'react-router-dom/server';
 import App from './App';
 
 export default function Layout({ initState }) {
@@ -273,22 +268,25 @@ export default function Layout({ initState }) {
       <head>
         <meta charSet="UTF-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
-        <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=yes" />
-        {/* скрипт наполнения вспомогательнго объекта initState для работы гидратации */}
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <script
           type="text/javascript"
           dangerouslySetInnerHTML={{
             __html: `window.initState=${JSON.stringify(initState)}`,
           }}
         />
-        {/* скрипты собранные через Webpack */}
         <script defer src="/app.js" />
         <script defer src="/vendor.js" />
-        <title>Puzzle 420</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-Zenh87qX5JnK2Jl0vWa8Ck2rdkQ2Bzep5IDxbcnCeuOxjzrPF/et3URy9Bv1WTRi" crossOrigin="anonymous" />
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-OERcA2EqjJCMA+/3y+gxIOqMEjwtxJY7qPCqsdltbNJuaOe923+mo//f6V8Qbsw3" crossOrigin="anonymous" />
+        <title>Document</title>
       </head>
       <body>
         <div id="root">
-          <App {...initState} />
+          {console.log(initState)}
+          <StaticRouter location={initState.path}>
+            <App {...initState} />
+          </StaticRouter>
         </div>
       </body>
     </html>
@@ -303,23 +301,7 @@ export default function Layout({ initState }) {
 ```Javascript
 import React from 'react';
 import ReactDOMClient from 'react-dom/client';
-import App from './App';
-
-ReactDOMClient.hydrateRoot(document.getElementById('root'), <App {...window.initState} />);
-```
-В Layout добавляем скрипт, который позволит передать initState в браузер:
-
-```Javascript
-<script type="text/javascript" dangerouslySetInnerHTML={{
-__html: `window.initState=${JSON.stringify(initState)}`
-          }} />
-```
-- [X] Если в реакте будет использоваться роутер, то импортируем react-router-dom и оборачиваем компонент <App /> в <BrowserRouter /> в файле index.jsx :
-
-```Javascript
 import { BrowserRouter } from 'react-router-dom';
-import React from 'react';
-import ReactDOMClient from 'react-dom/client';
 import App from './App';
 
 ReactDOMClient.hydrateRoot(
@@ -328,20 +310,151 @@ ReactDOMClient.hydrateRoot(
     <App {...window.initState} />
   </BrowserRouter>,
 );
+
 ```
-- [X] А также в случае роутинга оборачиваем компонент <App /> в <StaticRouter /> внутри <Layout />
-- [X] Указываем пропс location для работы hydrateRoot()
-
-
-import { StaticRouter } from 'react-router-dom/server';
+### /routes/authRouter.js
 ```Javascript
-      <body>
-        <div id="root">
-          <StaticRouter location={initState.path}>
-              <App {...initState} />
-          </StaticRouter>
+import express from 'express';
+import { hash, compare } from 'bcrypt';
+import { User } from '../../db/models';
+
+const router = express.Router();
+
+router.post('/', async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) return res.sendStatus(400);
+
+  const user = await User.findOne({ where: { email } });
+
+  if (!user) return res.sendStatus(400);
+
+  const isPassValid = compare(password, user.password);
+
+  if (!isPassValid) return res.sendStatus(400);
+
+  req.session.user = { id: user.id, email: user.email };
+
+  res.sendStatus(200);
+});
+
+router.post('/reg', async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) return res.sendStatus(400);
+
+  const hashPassword = await hash(password, 10);
+
+  const [user, isCreated] = await User.findOrCreate({
+    where: { email },
+    defaults: { email, password: hashPassword },
+  });
+
+  if (!isCreated) return res.sendStatus(400);
+
+  req.session.user = { id: user.id, email: user.email };
+
+  res.sendStatus(200);
+});
+
+router.get('/logout', (req, res) => {
+  res.clearCookie('user_sid'); // Удалить куку
+  req.session.destroy(); // Завершить сессию
+  res.redirect('/');
+});
+
+export default router;
+```
+
+
+### /midlewares/isAuth.js
+```Javascript
+const isAuth = (req, res, next) => {
+  if (!req.session.user) return res.redirect('/');
+  next();
+};
+
+export default isAuth;
+```
+### Auth.jsx
+```Javascript
+import React from 'react';
+
+function Auth() {
+  const submitHandler = async (e) => {
+    e.preventDefault();
+
+    const response = await fetch('/auth/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(Object.fromEntries(new FormData(e.target))),
+    });
+
+    if (response.ok) {
+      window.location.href = '/';
+    }
+  };
+
+  return (
+    <div>
+      <h1>Auth</h1>
+      <form onSubmit={submitHandler}>
+        <div className="mb-3">
+          <label htmlFor="exampleInputEmail1" className="form-label">Почта</label>
+          <input name="email" type="email" className="form-control" id="exampleInputEmail1" aria-describedby="emailHelp" />
         </div>
-      </body>
+        <div className="mb-3">
+          <label htmlFor="exampleInputPassword1" className="form-label">Пароль</label>
+          <input name="password" type="password" className="form-control" id="exampleInputPassword1" />
+        </div>
+        <button type="submit" className="btn btn-primary">Авторизация</button>
+      </form>
+    </div>
+  );
+}
+
+export default Auth;
+```
+### Reg.jsx
+```Javascript
+import React from 'react';
+
+function Reg() {
+  const submitHandler = async (e) => {
+    e.preventDefault();
+
+    const response = await fetch('/auth/reg/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(Object.fromEntries(new FormData(e.target))),
+    });
+
+    if (response.ok) {
+      window.location.href = '/';
+    }
+  };
+
+  return (
+    <div>
+      <h1>Reg</h1>
+      <form onSubmit={(e) => submitHandler(e)}>
+        <div className="mb-3">
+          <label htmlFor="exampleInputEmail1" className="form-label">Почта</label>
+          <input name="email" type="email" className="form-control" id="exampleInputEmail1" aria-describedby="emailHelp" />
+        </div>
+        <div className="mb-3">
+          <label htmlFor="exampleInputPassword1" className="form-label">Пароль</label>
+          <input name="password" type="password" className="form-control" id="exampleInputPassword1" />
+        </div>
+        <button type="submit" className="btn btn-primary">Регистрация</button>
+      </form>
+    </div>
+  );
+}
+
+export default Reg;
 ```
 
 
