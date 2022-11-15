@@ -673,7 +673,8 @@ DB_NAME=
 PORT=
 ```
 - [X] Создаём файл `.env`
-``` DB_USER=elbrus
+```
+DB_USER=elbrus
 DB_PASS=123
 DB_NAME=elbrus
 DB_HOST=127.0.0.1
