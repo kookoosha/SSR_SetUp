@@ -664,7 +664,8 @@ quit
 ```npx sequelize-cli db:seed:all```
 
 ### .env
-- [X] Создаём файл `copyEnv`
+- [X] `npm i dotenv`
+- [X] Создаём файл `copyEnv` 
 ```
 DB_USER=
 DB_PASS=
