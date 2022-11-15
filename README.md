@@ -116,6 +116,7 @@ module.exports = config;
 
 - [X] В корне проекта создаём папку src
 - [X] Добавляем туда пустой файл `server.js`
+- [X] Создаём папки `components` `middlewares` `routes` `utils`
 - [X] Добавляем в `package.json` скрипты запуска сервера и сборки webpack:
 ```Javascript 
  "scripts": {
@@ -128,61 +129,86 @@ module.exports = config;
 -
 ##### :paperclip: Пример server.js
 ```Javascript 
-// Подключение библиотеки express
-import express from 'express';
-// Подключаем переменную path для того что бы путь был найден при запуске из другого места
-import path from 'path';
-// Импорт кастомного рендера jsx-файлов
-import jsxRender from './utils/jsxRender';
+import express from 'express';// Подключение библиотеки express
+import morgan from 'morgan';
+import path from 'path';// Подключаем переменную path для того что бы путь был найден при запуске из другого места
+import session from 'express-session';
+import store from 'session-file-store';
+import jsxRender from './utils/jsxRender';// Импорт кастомного рендера jsx-файлов
+import authRouter from './routes/authRouter';
+import { User } from '../db/models';
+import isAuth from './middlewares/isAuth';
 
-// Создание приложения express
 const app = express();
-// Регистрируем движок для рендера
-app.engine('jsx', jsxRender);
+const PORT = 3000;
+
+app.engine('jsx', jsxRender);// Регистрируем движок для рендера
 app.set('view engine', 'jsx');
-// Указываем путь до компонентов
-app.set('views', path.join(__dirname, 'components'));
-// Изначальное значение счетчика
-app.locals.count = 0;
-// Подключение middleware, который парсит JSON от клиента
-app.use(express.json());
-// Подключение middleware, который отдаёт клиенту файлы из папки
-app.use(express.static(path.join(__dirname, 'public')));
+app.set('views', path.join(__dirname, 'components'));// Указываем путь до компонентов
 
-// Роут, отвечающий на запрос GET /
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static('public')); // Подключение middleware, который отдаёт клиенту файлы из папки или (app.use(express.static(path.join(__dirname, 'public')));
+)
+app.use(express.json());// Подключение middleware, который парсит JSON от клиента
+app.use(morgan('dev'));
+
+const FileStore = store(session);
+
+const sessionConfig = {
+  name: 'user_sid', // Имя куки для хранения id сессии. По умолчанию - connect.sid
+  store: new FileStore(),
+  secret: 'oh klahoma', // Секретное слово для шифрования, может быть любым
+  resave: false, // Пересохранять ли куку при каждом запросе
+  saveUninitialized: false, // Создавать ли сессию без инициализации ключей в req.session
+  cookie: {
+    maxAge: 1000 * 60 * 60 * 12, // Срок истечения годности куки в миллисекундах
+    httpOnly: true, // Серверная установка и удаление куки, по умолчанию true
+  },
+};
+app.use(session(sessionConfig));
+
+app.use((req, res, next) => {
+  res.locals.path = req.originalUrl;
+  res.locals.user = req.session.user;
+  next();
+});
+
+app.use('/auth', authRouter);
+
 app.get('/', (req, res) => {
-  // Передаем в Layout count который должен отобразиться в App.jsx при первом открытии страницы
-  const initState = { count: app.locals.count };
-  res.render('Layout', initState)
+  res.render('Layout');
 });
 
-// Роут, отвечающий на запрос GET /next
-app.get('/next', (req, res) => {
-  app.locals.count += 1;
-  return res.json({
-    count: app.locals.count,
-  });
+app.get('/auth', (req, res) => {
+  res.render('Layout');
 });
 
-// Запуск сервера по порту 3000
-app.listen(3000, () => {
-  console.log('server start');
+app.get('/reg', (req, res) => {
+  res.render('Layout');
 });
+
+app.use(isAuth); // миделвара для проверки регистрацииставить на этапе где нужна поверка!
+
+app.get('/users', async (req, res) => {
+  const users = await User.findAll();
+  const initState = { users };
+  res.render('Layout', initState);
+});
+
+app.listen(PORT, () => console.log(`Server is started on port ${PORT}`));
 
 ```
 - [X] Создаём папку `utils` и в ней файл `jsxRender.js`
 
 ```Javascript 
 import React from 'react';
-// Подключение метода для перевода React компонента в строку
-import { renderToString } from 'react-dom/server';
+import { renderToString } from 'react-dom/server';// Подключение метода для перевода React компонента в строку
 import Layout from '../components/Layout';
 
-export default function jsxRender(pathToFile, initState, cb) {
+export default function jsxRender(_, initState, cb) {
   // Создаём реакт-компонент, содержащий разметку страницы
   const layout = React.createElement(Layout, { initState });
-  // Переводим этот компонент в строку
-  const html = renderToString(layout);
+  const html = renderToString(layout); // Переводим этот компонент в строку
   // Возвращаем callback с html страницей
   return cb(null, `<!DOCTYPE html>${html}`);
 }
