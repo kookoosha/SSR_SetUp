@@ -32,7 +32,7 @@ rules: {
 ##### УСТАНОВКА ПАКЕТОВ - DEP
 Для установки необходимых пакетов в dependencies пишем:
 `npm i` *названия*
-- [ ] `npm i express react react-dom react-router-dom sequelize sequelize-cli pg pg-hstore`
+- [ ] `npm i express react react-dom react-router-dom sequelize sequelize-cli pg pg-hstore bcrypt`
 
 
 ## :pushpin: BABEL
